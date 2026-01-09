@@ -1,9 +1,9 @@
 
 import React, { useState, useMemo, useRef } from 'react';
-import { StoreState, Product, CartItem, Variation } from '../types';
+import { StoreState, Product, CartItem, Variation, SelectedOption } from '../types';
 import { formatCurrency, generateWhatsAppLink, isStoreOpen } from '../utils';
 import { 
-  Plus, Minus, X, ChevronRight, ShoppingBag
+  Plus, Minus, X, ShoppingBag, Check
 } from 'lucide-react';
 
 interface ClientViewProps {
@@ -14,9 +14,9 @@ const ClientView: React.FC<ClientViewProps> = ({ storeData }) => {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
-  const [selectedVariation, setSelectedVariation] = useState<Variation | null>(null);
+  const [tempSelectedVariation, setTempSelectedVariation] = useState<Variation | null>(null);
+  const [tempSelectedOptions, setTempSelectedOptions] = useState<SelectedOption[]>([]);
   
-  // Filtro de categorias e produtos ativos
   const activeCategories = useMemo(() => storeData.categories.filter(c => c.isActive), [storeData.categories]);
   const [activeCategoryId, setActiveCategoryId] = useState(activeCategories[0]?.id);
   
@@ -25,39 +25,57 @@ const ClientView: React.FC<ClientViewProps> = ({ storeData }) => {
 
   const cartCount = useMemo(() => cart.reduce((acc, item) => acc + item.quantity, 0), [cart]);
   const cartTotal = useMemo(() => cart.reduce((acc, item) => {
-    const price = item.selectedVariation ? item.selectedVariation.price : item.price;
+    let price = item.selectedVariation ? item.selectedVariation.price : item.price;
+    price += item.selectedOptions.reduce((a, c) => a + c.price, 0);
     return acc + (price * item.quantity);
   }, 0), [cart]);
 
+  const toggleOption = (groupId: string, groupName: string, optionId: string, optionName: string, price: number, maxChoices: number) => {
+    const currentGroupSelections = tempSelectedOptions.filter(o => o.groupId === groupId);
+    const isSelected = tempSelectedOptions.some(o => o.optionId === optionId);
+
+    if (isSelected) {
+      setTempSelectedOptions(prev => prev.filter(o => o.optionId !== optionId));
+    } else {
+      if (currentGroupSelections.length < maxChoices) {
+        setTempSelectedOptions(prev => [...prev, { groupId, groupName, optionId, optionName, price }]);
+      }
+    }
+  };
+
   const handleAddToCart = () => {
     if (!selectedProduct) return;
-    if (selectedProduct.variations.length > 0 && !selectedVariation) return;
+    
+    // Validar se mínimos foram atingidos
+    const missingMin = selectedProduct.optionGroups.some(g => {
+      const selections = tempSelectedOptions.filter(o => o.groupId === g.id).length;
+      return selections < g.minChoices;
+    });
+
+    if (missingMin) {
+      alert("Por favor, selecione a quantidade mínima de sabores/opções.");
+      return;
+    }
 
     setCart(prev => {
-      const existing = prev.find(item => 
-        item.id === selectedProduct.id && 
-        item.selectedVariation?.id === selectedVariation?.id
-      );
-      
-      if (existing) {
-        return prev.map(item => item === existing ? { ...item, quantity: item.quantity + 1 } : item);
-      }
-      
+      // Para itens com opções/sabores, tratamos como itens únicos no carrinho
       return [...prev, { 
         ...selectedProduct, 
+        id: selectedProduct.id + '-' + Date.now(), // ID único para cada config de sabores
         quantity: 1, 
-        selectedVariation: selectedVariation || undefined,
-        selectedOptions: [] 
+        selectedVariation: tempSelectedVariation || undefined,
+        selectedOptions: [...tempSelectedOptions] 
       }];
     });
     
     setSelectedProduct(null);
-    setSelectedVariation(null);
+    setTempSelectedVariation(null);
+    setTempSelectedOptions([]);
   };
 
   return (
     <div className="max-w-md mx-auto min-h-screen bg-zinc-950 text-white pb-40 relative shadow-2xl overflow-hidden font-inter">
-      {/* Header Minimalista */}
+      {/* Header */}
       <header className="sticky top-0 z-40 bg-zinc-950/90 backdrop-blur-xl border-b border-zinc-900 p-8">
         <div className="flex items-center gap-5 mb-8">
           <div className="w-14 h-14 bg-zinc-900 rounded-2xl flex items-center justify-center overflow-hidden border border-zinc-800">
@@ -66,7 +84,7 @@ const ClientView: React.FC<ClientViewProps> = ({ storeData }) => {
           <div>
             <h1 className="text-2xl font-black">{storeData.business.name}</h1>
             <div className="flex items-center gap-2 mt-1">
-              <span className={`w-2 h-2 rounded-full animate-pulse ${isOpen ? 'bg-green-500' : 'bg-red-500'}`}></span>
+              <span className={`w-2 h-2 rounded-full ${isOpen ? 'bg-green-500' : 'bg-red-500'}`}></span>
               <span className={`text-[10px] font-black uppercase tracking-widest ${isOpen ? 'text-green-500' : 'text-red-500'}`}>
                 {isOpen ? 'Aberto' : 'Fechado'}
               </span>
@@ -90,7 +108,7 @@ const ClientView: React.FC<ClientViewProps> = ({ storeData }) => {
         </nav>
       </header>
 
-      {/* Listagem de Itens */}
+      {/* Itens */}
       <main className="px-8 mt-10 space-y-12">
         {activeCategories.map(category => (
           <section key={category.id} ref={el => { categoryRefs.current[category.id] = el; }} className="scroll-mt-40">
@@ -104,90 +122,93 @@ const ClientView: React.FC<ClientViewProps> = ({ storeData }) => {
                     <h4 className="font-bold text-white text-xl group-hover:text-yellow-400 transition-colors">{product.name}</h4>
                     <p className="text-sm text-zinc-500 font-medium leading-relaxed mt-1 line-clamp-2">{product.description}</p>
                     <div className="mt-4 flex items-center justify-between">
-                      <span className="font-black text-white">
-                        {product.variations.length > 0 
-                          ? `A partir de ${formatCurrency(Math.min(...product.variations.map(v => v.price)))}`
-                          : formatCurrency(product.price)
-                        }
-                      </span>
+                      <span className="font-black text-white">{formatCurrency(product.price)}</span>
                       <div className="bg-zinc-900 p-2 rounded-xl text-yellow-400 border border-zinc-800"><Plus size={18} strokeWidth={4} /></div>
                     </div>
                   </div>
                   {product.imageUrl && (
-                    <img src={product.imageUrl} className="w-24 h-24 object-cover rounded-[1.5rem] border border-zinc-900 shadow-xl" />
+                    <img src={product.imageUrl} className="w-24 h-24 object-cover rounded-[1.5rem] border border-zinc-900" />
                   )}
                 </div>
               ))}
             </div>
           </section>
         ))}
-        {activeCategories.length === 0 && (
-          <div className="py-20 text-center text-zinc-600 font-bold uppercase tracking-widest text-sm">
-            Nenhum item disponível no momento.
-          </div>
-        )}
       </main>
 
-      {/* Modal Produto Complexo */}
+      {/* Modal Pastel (Complexo) */}
       {selectedProduct && (
         <div className="fixed inset-0 z-[100] flex items-end justify-center bg-black/90 backdrop-blur-md p-4">
-          <div className="bg-zinc-900 w-full max-w-md rounded-[3.5rem] overflow-hidden animate-slide-up border border-zinc-800">
-            {selectedProduct.imageUrl && <img src={selectedProduct.imageUrl} className="w-full h-56 object-cover" />}
-            <div className="p-10 space-y-8">
-              <div>
-                <h2 className="text-3xl font-black text-white leading-tight">{selectedProduct.name}</h2>
-                <p className="text-zinc-500 font-medium mt-2">{selectedProduct.description}</p>
-              </div>
-
-              {selectedProduct.variations.length > 0 && (
-                <div className="space-y-4">
-                  <span className="text-[10px] font-black uppercase text-zinc-600 tracking-widest">Selecione uma opção</span>
-                  <div className="grid gap-3">
-                    {selectedProduct.variations.map(v => (
-                      <button key={v.id} onClick={() => setSelectedVariation(v)}
-                        className={`flex justify-between items-center p-5 rounded-2xl border-2 transition-all ${
-                          selectedVariation?.id === v.id ? 'border-yellow-400 bg-yellow-400/10' : 'border-zinc-800 bg-zinc-800/30 text-zinc-400'
-                        }`}
-                      >
-                        <span className="font-bold">{v.name}</span>
-                        <span className="font-black text-white">{formatCurrency(v.price)}</span>
-                      </button>
-                    ))}
-                  </div>
+          <div className="bg-zinc-900 w-full max-w-md rounded-[3.5rem] overflow-hidden animate-slide-up border border-zinc-800 flex flex-col max-h-[90vh]">
+            <div className="overflow-y-auto flex-1">
+              {selectedProduct.imageUrl && <img src={selectedProduct.imageUrl} className="w-full h-56 object-cover" />}
+              <div className="p-10 space-y-10">
+                <div>
+                  <h2 className="text-3xl font-black text-white">{selectedProduct.name}</h2>
+                  <p className="text-zinc-500 font-medium mt-2">{selectedProduct.description}</p>
                 </div>
-              )}
 
-              <div className="flex gap-4">
-                <button disabled={!isOpen || (selectedProduct.variations.length > 0 && !selectedVariation)} 
-                  onClick={handleAddToCart}
-                  className="flex-1 bg-yellow-400 text-black py-6 rounded-[2rem] font-black text-xl disabled:bg-zinc-800 disabled:text-zinc-600 transition-all shadow-xl active:scale-95"
-                >
-                  Adicionar • {formatCurrency(selectedVariation ? selectedVariation.price : selectedProduct.price)}
-                </button>
-                <button onClick={() => { setSelectedProduct(null); setSelectedVariation(null); }} className="p-6 bg-zinc-800 rounded-[2rem] text-zinc-500 hover:text-white"><X /></button>
+                {selectedProduct.optionGroups.map(group => (
+                  <div key={group.id} className="space-y-6">
+                    <div className="flex justify-between items-end">
+                      <h4 className="text-[10px] font-black uppercase text-zinc-600 tracking-widest">{group.name}</h4>
+                      <span className="text-[10px] font-black text-yellow-400">
+                        {tempSelectedOptions.filter(o => o.groupId === group.id).length} / {group.maxChoices}
+                      </span>
+                    </div>
+                    <div className="grid gap-3">
+                      {group.options.map(opt => {
+                        const isSelected = tempSelectedOptions.some(o => o.optionId === opt.id);
+                        return (
+                          <button key={opt.id} 
+                            onClick={() => toggleOption(group.id, group.name, opt.id, opt.name, opt.price, group.maxChoices)}
+                            className={`flex justify-between items-center p-5 rounded-2xl border-2 transition-all ${
+                              isSelected ? 'border-yellow-400 bg-yellow-400/10' : 'border-zinc-800 bg-zinc-800/30 text-zinc-500'
+                            }`}
+                          >
+                            <span className="font-bold flex items-center gap-3">
+                              {isSelected && <Check size={18} className="text-yellow-400" />}
+                              {opt.name}
+                            </span>
+                            {opt.price > 0 && <span className="text-xs font-black">+ {formatCurrency(opt.price)}</span>}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
               </div>
+            </div>
+
+            <div className="p-10 bg-zinc-900/80 border-t border-zinc-800 flex gap-4">
+              <button onClick={handleAddToCart}
+                className="flex-1 bg-yellow-400 text-black py-6 rounded-[2rem] font-black text-xl shadow-xl"
+              >
+                Adicionar • {formatCurrency(selectedProduct.price + tempSelectedOptions.reduce((a,c) => a + c.price, 0))}
+              </button>
+              <button onClick={() => { setSelectedProduct(null); setTempSelectedOptions([]); }} className="p-6 bg-zinc-800 rounded-[2rem] text-zinc-500"><X /></button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Botão Flutuante Carrinho */}
+      {/* Floating Cart */}
       {cartCount > 0 && (
         <div className="fixed bottom-0 left-0 right-0 max-w-md mx-auto p-6 z-50">
-           <button onClick={() => setIsCartOpen(true)} className="w-full bg-yellow-400 text-black rounded-[2.5rem] py-6 px-10 flex items-center justify-between shadow-[0_20px_50px_rgba(250,204,21,0.3)] animate-slide-up">
-              <span className="font-black text-lg">{cartCount} {cartCount === 1 ? 'item' : 'itens'}</span>
+           <button onClick={() => setIsCartOpen(true)} className="w-full bg-yellow-400 text-black rounded-[2.5rem] py-6 px-10 flex items-center justify-between shadow-2xl">
+              <span className="font-black text-lg">{cartCount} Itens</span>
               <span className="font-black text-2xl">{formatCurrency(cartTotal)}</span>
            </button>
         </div>
       )}
 
-      {/* Carrinho / Sacola */}
+      {/* Cart Drawer */}
       {isCartOpen && (
-        <div className="fixed inset-0 z-[110] bg-black/95 backdrop-blur-2xl animate-fade-in">
-           <div className="absolute inset-y-0 right-0 w-full max-w-md bg-zinc-950 flex flex-col border-l border-zinc-900 shadow-2xl">
+        <div className="fixed inset-0 z-[110] bg-black/95 backdrop-blur-xl animate-fade-in">
+           <div className="absolute inset-y-0 right-0 w-full max-w-md bg-zinc-950 flex flex-col border-l border-zinc-900">
               <div className="p-10 flex justify-between items-center border-b border-zinc-900">
-                <h2 className="text-3xl font-black">Sacola <span className="text-yellow-400">Digital</span></h2>
-                <button onClick={() => setIsCartOpen(false)} className="p-4 bg-zinc-900 rounded-full border border-zinc-800"><X /></button>
+                <h2 className="text-3xl font-black">Minha <span className="text-yellow-400">Sacola</span></h2>
+                <button onClick={() => setIsCartOpen(false)} className="p-4 bg-zinc-900 rounded-full"><X /></button>
               </div>
               
               <div className="flex-1 overflow-y-auto p-10 space-y-10">
@@ -195,37 +216,29 @@ const ClientView: React.FC<ClientViewProps> = ({ storeData }) => {
                   <div key={idx} className="flex gap-6 animate-fade-in">
                     <div className="flex-1">
                       <h4 className="font-bold text-white text-lg">{item.name}</h4>
-                      {item.selectedVariation && <p className="text-xs text-yellow-400 font-bold uppercase tracking-wider">{item.selectedVariation.name}</p>}
+                      {item.selectedOptions.length > 0 && (
+                        <p className="text-xs text-zinc-500 mt-1">Sabores: {item.selectedOptions.map(o => o.optionName).join(', ')}</p>
+                      )}
                       <div className="mt-4 flex items-center justify-between">
-                        <div className="flex items-center gap-3 bg-zinc-900 p-2 rounded-xl border border-zinc-800">
-                          <button className="p-1" onClick={() => {
-                             setCart(prev => {
-                               const existing = prev[idx];
-                               if (existing.quantity > 1) return prev.map((it, i) => i === idx ? {...it, quantity: it.quantity - 1} : it);
-                               return prev.filter((_, i) => i !== idx);
-                             });
-                          }}><Minus size={16} /></button>
-                          <span className="font-black text-white w-6 text-center">{item.quantity}</span>
-                          <button className="p-1" onClick={() => {
-                             setCart(prev => prev.map((it, i) => i === idx ? {...it, quantity: it.quantity + 1} : it));
-                          }}><Plus size={16} /></button>
-                        </div>
-                        <span className="font-black text-xl">{formatCurrency((item.selectedVariation?.price || item.price) * item.quantity)}</span>
+                        <button className="text-red-500 text-[10px] font-black uppercase tracking-widest" onClick={() => setCart(prev => prev.filter((_, i) => i !== idx))}>Remover</button>
+                        <span className="font-black text-xl">
+                          {formatCurrency((item.price + item.selectedOptions.reduce((a,c) => a + c.price, 0)) * item.quantity)}
+                        </span>
                       </div>
                     </div>
                   </div>
                 ))}
               </div>
 
-              <div className="p-10 bg-zinc-900/50 space-y-8 border-t border-zinc-900">
+              <div className="p-10 bg-zinc-900 space-y-8">
                 <div className="flex justify-between items-end font-black">
-                  <span className="text-zinc-500 uppercase text-[10px] tracking-widest">Total com entrega</span>
+                  <span className="text-zinc-500 uppercase text-[10px]">Total do Pedido</span>
                   <span className="text-4xl text-white">{formatCurrency(cartTotal + storeData.business.settings.deliveryFee)}</span>
                 </div>
                 <button onClick={() => window.open(generateWhatsAppLink(storeData.business, cart, cartTotal), '_blank')}
-                  className="w-full bg-yellow-400 text-black py-7 rounded-[2.5rem] font-black text-xl shadow-xl active:scale-95 transition-all flex items-center justify-center gap-3"
+                  className="w-full bg-yellow-400 text-black py-7 rounded-[2.5rem] font-black text-xl shadow-xl active:scale-95 transition-all"
                 >
-                  Confirmar Pedido 🚀
+                  Finalizar no WhatsApp 🚀
                 </button>
               </div>
            </div>
@@ -233,7 +246,7 @@ const ClientView: React.FC<ClientViewProps> = ({ storeData }) => {
       )}
 
       <style>{`
-        @keyframes slide-up { from { transform: translateY(100%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        @keyframes slide-up { from { transform: translateY(100%); } to { transform: translateY(0); } }
         .animate-slide-up { animation: slide-up 0.5s cubic-bezier(0.16, 1, 0.3, 1); }
       `}</style>
     </div>

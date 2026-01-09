@@ -27,10 +27,16 @@ export const generateWhatsAppLink = (business: Business, cart: CartItem[], total
   const itemsText = cart
     .map(item => {
       const variationName = item.selectedVariation ? ` (${item.selectedVariation.name})` : '';
-      const price = item.selectedVariation ? item.selectedVariation.price : item.price;
-      return `*${item.quantity}x ${item.name}${variationName}* - ${formatCurrency(price * item.quantity)}`;
+      const optionsText = item.selectedOptions.length > 0 
+        ? `\n   └ Sabores: ${item.selectedOptions.map(o => o.optionName).join(', ')}` 
+        : '';
+      
+      let itemPrice = item.selectedVariation ? item.selectedVariation.price : item.price;
+      itemPrice += item.selectedOptions.reduce((acc, curr) => acc + curr.price, 0);
+
+      return `*${item.quantity}x ${item.name}${variationName}* - ${formatCurrency(itemPrice * item.quantity)}${optionsText}`;
     })
-    .join('\n');
+    .join('\n\n');
 
   const deliveryInfo = business.settings.deliveryFee > 0 
     ? `\nTaxa de Entrega: ${formatCurrency(business.settings.deliveryFee)}` 

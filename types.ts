@@ -19,6 +19,20 @@ export interface Business {
   };
 }
 
+export interface Option {
+  id: string;
+  name: string;
+  price: number;
+}
+
+export interface OptionGroup {
+  id: string;
+  name: string;
+  minChoices: number;
+  maxChoices: number;
+  options: Option[];
+}
+
 export interface Variation {
   id: string;
   name: string;
@@ -44,16 +58,21 @@ export interface Product {
   isAvailable: boolean;
   isFeatured: boolean;
   variations: Variation[];
+  optionGroups: OptionGroup[];
+}
+
+export interface SelectedOption {
+  groupId: string;
+  groupName: string;
+  optionId: string;
+  optionName: string;
+  price: number;
 }
 
 export interface CartItem extends Product {
   quantity: number;
   selectedVariation?: Variation;
-  selectedOptions: {
-    groupName: string;
-    optionName: string;
-    price: number;
-  }[];
+  selectedOptions: SelectedOption[];
 }
 
 export interface StoreState {
