@@ -46,22 +46,27 @@ const ClientView: React.FC<ClientViewProps> = ({ storeData }) => {
   const handleAddToCart = () => {
     if (!selectedProduct) return;
     
-    // Validar se mínimos foram atingidos
+    // Se tiver variações, uma deve estar selecionada
+    if (selectedProduct.variations.length > 0 && !tempSelectedVariation) {
+      alert("Por favor, selecione um tamanho/tipo.");
+      return;
+    }
+
+    // Validar se mínimos de sabores foram atingidos
     const missingMin = selectedProduct.optionGroups.some(g => {
       const selections = tempSelectedOptions.filter(o => o.groupId === g.id).length;
       return selections < g.minChoices;
     });
 
     if (missingMin) {
-      alert("Por favor, selecione a quantidade mínima de sabores/opções.");
+      alert("Selecione a quantidade mínima de opções/sabores.");
       return;
     }
 
     setCart(prev => {
-      // Para itens com opções/sabores, tratamos como itens únicos no carrinho
       return [...prev, { 
         ...selectedProduct, 
-        id: selectedProduct.id + '-' + Date.now(), // ID único para cada config de sabores
+        id: selectedProduct.id + '-' + Date.now(), 
         quantity: 1, 
         selectedVariation: tempSelectedVariation || undefined,
         selectedOptions: [...tempSelectedOptions] 
@@ -85,13 +90,12 @@ const ClientView: React.FC<ClientViewProps> = ({ storeData }) => {
             <h1 className="text-2xl font-black">{storeData.business.name}</h1>
             <div className="flex items-center gap-2 mt-1">
               <span className={`w-2 h-2 rounded-full ${isOpen ? 'bg-green-500' : 'bg-red-500'}`}></span>
-              <span className={`text-[10px] font-black uppercase tracking-widest ${isOpen ? 'text-green-500' : 'text-red-500'}`}>
-                {isOpen ? 'Aberto' : 'Fechado'}
+              <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">
+                {isOpen ? 'Aberto Agora' : 'Fechado'}
               </span>
             </div>
           </div>
         </div>
-
         <nav className="flex overflow-x-auto hide-scrollbar gap-3">
           {activeCategories.map(cat => (
             <button key={cat.id} onClick={() => { 
@@ -120,15 +124,15 @@ const ClientView: React.FC<ClientViewProps> = ({ storeData }) => {
                 <div key={product.id} onClick={() => setSelectedProduct(product)} className="flex gap-6 group cursor-pointer animate-fade-in">
                   <div className="flex-1 min-w-0">
                     <h4 className="font-bold text-white text-xl group-hover:text-yellow-400 transition-colors">{product.name}</h4>
-                    <p className="text-sm text-zinc-500 font-medium leading-relaxed mt-1 line-clamp-2">{product.description}</p>
+                    <p className="text-sm text-zinc-500 mt-1 line-clamp-2">{product.description}</p>
                     <div className="mt-4 flex items-center justify-between">
-                      <span className="font-black text-white">{formatCurrency(product.price)}</span>
-                      <div className="bg-zinc-900 p-2 rounded-xl text-yellow-400 border border-zinc-800"><Plus size={18} strokeWidth={4} /></div>
+                      <span className="font-black text-white">
+                        {product.variations.length > 0 ? `A partir de ${formatCurrency(Math.min(...product.variations.map(v => v.price)))}` : formatCurrency(product.price)}
+                      </span>
+                      <div className="bg-zinc-900 p-2 rounded-xl text-yellow-400 border border-zinc-800"><Plus size={18} /></div>
                     </div>
                   </div>
-                  {product.imageUrl && (
-                    <img src={product.imageUrl} className="w-24 h-24 object-cover rounded-[1.5rem] border border-zinc-900" />
-                  )}
+                  {product.imageUrl && <img src={product.imageUrl} className="w-24 h-24 object-cover rounded-[1.5rem] border border-zinc-900" />}
                 </div>
               ))}
             </div>
@@ -136,57 +140,74 @@ const ClientView: React.FC<ClientViewProps> = ({ storeData }) => {
         ))}
       </main>
 
-      {/* Modal Pastel (Complexo) */}
+      {/* Modal Pastel / Produto (Tamanhos + Sabores) */}
       {selectedProduct && (
         <div className="fixed inset-0 z-[100] flex items-end justify-center bg-black/90 backdrop-blur-md p-4">
           <div className="bg-zinc-900 w-full max-w-md rounded-[3.5rem] overflow-hidden animate-slide-up border border-zinc-800 flex flex-col max-h-[90vh]">
-            <div className="overflow-y-auto flex-1">
-              {selectedProduct.imageUrl && <img src={selectedProduct.imageUrl} className="w-full h-56 object-cover" />}
-              <div className="p-10 space-y-10">
-                <div>
-                  <h2 className="text-3xl font-black text-white">{selectedProduct.name}</h2>
-                  <p className="text-zinc-500 font-medium mt-2">{selectedProduct.description}</p>
-                </div>
-
-                {selectedProduct.optionGroups.map(group => (
-                  <div key={group.id} className="space-y-6">
-                    <div className="flex justify-between items-end">
-                      <h4 className="text-[10px] font-black uppercase text-zinc-600 tracking-widest">{group.name}</h4>
-                      <span className="text-[10px] font-black text-yellow-400">
-                        {tempSelectedOptions.filter(o => o.groupId === group.id).length} / {group.maxChoices}
-                      </span>
-                    </div>
-                    <div className="grid gap-3">
-                      {group.options.map(opt => {
-                        const isSelected = tempSelectedOptions.some(o => o.optionId === opt.id);
-                        return (
-                          <button key={opt.id} 
-                            onClick={() => toggleOption(group.id, group.name, opt.id, opt.name, opt.price, group.maxChoices)}
-                            className={`flex justify-between items-center p-5 rounded-2xl border-2 transition-all ${
-                              isSelected ? 'border-yellow-400 bg-yellow-400/10' : 'border-zinc-800 bg-zinc-800/30 text-zinc-500'
-                            }`}
-                          >
-                            <span className="font-bold flex items-center gap-3">
-                              {isSelected && <Check size={18} className="text-yellow-400" />}
-                              {opt.name}
-                            </span>
-                            {opt.price > 0 && <span className="text-xs font-black">+ {formatCurrency(opt.price)}</span>}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                ))}
+            <div className="overflow-y-auto flex-1 p-10 space-y-10">
+              <div>
+                <h2 className="text-3xl font-black text-white">{selectedProduct.name}</h2>
+                <p className="text-zinc-500 font-medium mt-2">{selectedProduct.description}</p>
               </div>
+
+              {/* SELEÇÃO DE TAMANHO (RESTAURADO) */}
+              {selectedProduct.variations.length > 0 && (
+                <div className="space-y-6">
+                  <h4 className="text-[10px] font-black uppercase text-zinc-600 tracking-widest">Escolha o Tamanho</h4>
+                  <div className="grid gap-3">
+                    {selectedProduct.variations.map(v => (
+                      <button key={v.id} onClick={() => setTempSelectedVariation(v)}
+                        className={`flex justify-between items-center p-5 rounded-2xl border-2 transition-all ${
+                          tempSelectedVariation?.id === v.id ? 'border-yellow-400 bg-yellow-400/10' : 'border-zinc-800 bg-zinc-800/30 text-zinc-500'
+                        }`}
+                      >
+                        <span className="font-bold flex items-center gap-3">
+                          {tempSelectedVariation?.id === v.id && <Check size={18} className="text-yellow-400" />}
+                          {v.name}
+                        </span>
+                        <span className="text-sm font-black text-white">{formatCurrency(v.price)}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* SELEÇÃO DE SABORES (MANTIDO) */}
+              {selectedProduct.optionGroups.map(group => (
+                <div key={group.id} className="space-y-6">
+                  <div className="flex justify-between items-end">
+                    <h4 className="text-[10px] font-black uppercase text-zinc-600 tracking-widest">{group.name}</h4>
+                    <span className="text-[10px] font-black text-yellow-400">
+                      {tempSelectedOptions.filter(o => o.groupId === group.id).length} / {group.maxChoices}
+                    </span>
+                  </div>
+                  <div className="grid gap-3">
+                    {group.options.map(opt => {
+                      const isSelected = tempSelectedOptions.some(o => o.optionId === opt.id);
+                      return (
+                        <button key={opt.id} 
+                          onClick={() => toggleOption(group.id, group.name, opt.id, opt.name, opt.price, group.maxChoices)}
+                          className={`flex justify-between items-center p-5 rounded-2xl border-2 transition-all ${
+                            isSelected ? 'border-yellow-400 bg-yellow-400/10' : 'border-zinc-800 bg-zinc-800/30 text-zinc-500'
+                          }`}
+                        >
+                          <span className="font-bold">{opt.name}</span>
+                          {opt.price > 0 && <span className="text-xs font-black text-white">+ {formatCurrency(opt.price)}</span>}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
             </div>
 
-            <div className="p-10 bg-zinc-900/80 border-t border-zinc-800 flex gap-4">
+            <div className="p-10 bg-zinc-900 border-t border-zinc-800 flex gap-4">
               <button onClick={handleAddToCart}
-                className="flex-1 bg-yellow-400 text-black py-6 rounded-[2rem] font-black text-xl shadow-xl"
+                className="flex-1 bg-yellow-400 text-black py-6 rounded-[2rem] font-black text-xl shadow-xl active:scale-95 transition-transform"
               >
-                Adicionar • {formatCurrency(selectedProduct.price + tempSelectedOptions.reduce((a,c) => a + c.price, 0))}
+                Adicionar • {formatCurrency((tempSelectedVariation?.price || selectedProduct.price) + tempSelectedOptions.reduce((a,c) => a + c.price, 0))}
               </button>
-              <button onClick={() => { setSelectedProduct(null); setTempSelectedOptions([]); }} className="p-6 bg-zinc-800 rounded-[2rem] text-zinc-500"><X /></button>
+              <button onClick={() => { setSelectedProduct(null); setTempSelectedVariation(null); setTempSelectedOptions([]); }} className="p-6 bg-zinc-800 rounded-[2rem] text-zinc-500"><X /></button>
             </div>
           </div>
         </div>
@@ -207,38 +228,36 @@ const ClientView: React.FC<ClientViewProps> = ({ storeData }) => {
         <div className="fixed inset-0 z-[110] bg-black/95 backdrop-blur-xl animate-fade-in">
            <div className="absolute inset-y-0 right-0 w-full max-w-md bg-zinc-950 flex flex-col border-l border-zinc-900">
               <div className="p-10 flex justify-between items-center border-b border-zinc-900">
-                <h2 className="text-3xl font-black">Minha <span className="text-yellow-400">Sacola</span></h2>
+                <h2 className="text-3xl font-black">Sacola</h2>
                 <button onClick={() => setIsCartOpen(false)} className="p-4 bg-zinc-900 rounded-full"><X /></button>
               </div>
               
               <div className="flex-1 overflow-y-auto p-10 space-y-10">
                 {cart.map((item, idx) => (
-                  <div key={idx} className="flex gap-6 animate-fade-in">
-                    <div className="flex-1">
-                      <h4 className="font-bold text-white text-lg">{item.name}</h4>
-                      {item.selectedOptions.length > 0 && (
-                        <p className="text-xs text-zinc-500 mt-1">Sabores: {item.selectedOptions.map(o => o.optionName).join(', ')}</p>
-                      )}
-                      <div className="mt-4 flex items-center justify-between">
-                        <button className="text-red-500 text-[10px] font-black uppercase tracking-widest" onClick={() => setCart(prev => prev.filter((_, i) => i !== idx))}>Remover</button>
-                        <span className="font-black text-xl">
-                          {formatCurrency((item.price + item.selectedOptions.reduce((a,c) => a + c.price, 0)) * item.quantity)}
-                        </span>
-                      </div>
+                  <div key={idx} className="flex flex-col gap-2">
+                    <div className="flex justify-between">
+                      <h4 className="font-bold text-white text-lg">{item.name} {item.selectedVariation && <span className="text-zinc-500 text-sm">({item.selectedVariation.name})</span>}</h4>
+                      <span className="font-black text-xl">
+                        {formatCurrency((item.selectedVariation?.price || item.price + item.selectedOptions.reduce((a,c) => a + c.price, 0)) * item.quantity)}
+                      </span>
                     </div>
+                    {item.selectedOptions.length > 0 && (
+                      <p className="text-xs text-zinc-500">Sabores: {item.selectedOptions.map(o => o.optionName).join(', ')}</p>
+                    )}
+                    <button className="text-red-500 text-[10px] font-black uppercase text-left mt-2" onClick={() => setCart(prev => prev.filter((_, i) => i !== idx))}>Remover Item</button>
                   </div>
                 ))}
               </div>
 
               <div className="p-10 bg-zinc-900 space-y-8">
                 <div className="flex justify-between items-end font-black">
-                  <span className="text-zinc-500 uppercase text-[10px]">Total do Pedido</span>
+                  <span className="text-zinc-500 uppercase text-[10px]">Total</span>
                   <span className="text-4xl text-white">{formatCurrency(cartTotal + storeData.business.settings.deliveryFee)}</span>
                 </div>
                 <button onClick={() => window.open(generateWhatsAppLink(storeData.business, cart, cartTotal), '_blank')}
-                  className="w-full bg-yellow-400 text-black py-7 rounded-[2.5rem] font-black text-xl shadow-xl active:scale-95 transition-all"
+                  className="w-full bg-yellow-400 text-black py-7 rounded-[2.5rem] font-black text-xl shadow-xl"
                 >
-                  Finalizar no WhatsApp 🚀
+                  Pedir no WhatsApp 🚀
                 </button>
               </div>
            </div>

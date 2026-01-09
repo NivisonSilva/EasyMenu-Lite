@@ -8,7 +8,7 @@ import { formatCurrency, generateQRCodeUrl } from '../utils';
 import { 
   Plus, Trash2, Edit, Settings, Package, Layers, 
   QrCode, Eye, X, Save, Search, LogOut, LayoutGrid, Clock, 
-  CheckCircle2, AlertCircle, Power, ChevronLeft, ArrowLeft
+  Power, ArrowLeft
 } from 'lucide-react';
 
 interface AdminDashboardProps {
@@ -103,61 +103,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ storeData, onUpdate, on
     </div>
   );
 
-  const renderProducts = () => (
-    <div className="space-y-8 animate-fade-in">
-      <TabHeader title="Produtos" subtitle="Gerencie seus itens e combinações de sabores." />
-      
-      <div className="flex flex-col sm:flex-row gap-4">
-        <div className="flex-1 bg-zinc-900 p-4 rounded-[2rem] border border-zinc-800 flex items-center gap-4">
-          <Search className="text-zinc-600" size={20} />
-          <input type="text" placeholder="Filtrar produtos..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)}
-            className="flex-1 bg-transparent outline-none font-bold text-white placeholder-zinc-700" />
-        </div>
-        <button onClick={() => {
-            if (storeData.categories.length === 0) { showFeedback('Crie uma categoria primeiro!', 'error'); setActiveTab('categories'); }
-            else { setEditingProduct({ categoryId: storeData.categories[0].id, isAvailable: true, variations: [], optionGroups: [], price: 0 }); }
-          }} className="bg-yellow-400 text-black px-8 py-4 rounded-[2rem] font-black flex items-center justify-center gap-2 shadow-xl shadow-yellow-900/10 hover:bg-yellow-300 transition-all">
-          <Plus size={20} /> Adicionar Produto
-        </button>
-      </div>
-
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-        {storeData.products.filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase())).map(product => (
-          <div key={product.id} className={`bg-zinc-900 p-6 rounded-[2.5rem] border border-zinc-800 flex gap-6 items-center group transition-all ${!product.isAvailable ? 'opacity-40 grayscale' : 'hover:border-zinc-700'}`}>
-            <div className="w-20 h-20 bg-zinc-800 rounded-2xl flex-shrink-0 overflow-hidden">
-               {product.imageUrl ? <img src={product.imageUrl} className="w-full h-full object-cover" /> : <Package className="w-full h-full p-6 text-zinc-700" />}
-            </div>
-            <div className="flex-1 min-w-0">
-              <h4 className="font-bold text-white text-lg truncate">{product.name}</h4>
-              <div className="flex items-center gap-3 mt-1">
-                <span className="font-black text-yellow-400">{formatCurrency(product.price)}</span>
-                {product.optionGroups.length > 0 && (
-                  <span className="bg-zinc-800 text-zinc-500 text-[9px] font-black uppercase px-2 py-1 rounded">Múltiplos Sabores</span>
-                )}
-              </div>
-            </div>
-            <div className="flex gap-2">
-              <button onClick={() => {
-                const newProducts = storeData.products.map(p => p.id === product.id ? { ...p, isAvailable: !p.isAvailable } : p);
-                updateState({ ...storeData, products: newProducts });
-                showFeedback(product.isAvailable ? 'Item Pausado' : 'Item Ativado');
-              }} className={`p-3 rounded-xl transition-colors ${product.isAvailable ? 'bg-green-500/10 text-green-500' : 'bg-zinc-800 text-zinc-500'}`}>
-                <Power size={18} />
-              </button>
-              <button onClick={() => setEditingProduct(product)} className="p-3 bg-zinc-800 text-white rounded-xl hover:bg-zinc-700 transition-colors"><Edit size={18} /></button>
-              <button onClick={() => {
-                if (confirm('Excluir este item permanentemente?')) {
-                  updateState({ ...storeData, products: storeData.products.filter(p => p.id !== product.id) });
-                  showFeedback('Produto removido');
-                }
-              }} className="p-3 bg-red-500/10 text-red-500 rounded-xl hover:bg-red-500 hover:text-white transition-colors"><Trash2 size={18} /></button>
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-
   return (
     <div className="min-h-screen bg-zinc-950 lg:flex font-inter text-white">
       {toast && (
@@ -166,7 +111,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ storeData, onUpdate, on
         </div>
       )}
 
-      {/* Sidebar Desktop RESTAURADA */}
+      {/* Sidebar Desktop */}
       <aside className="hidden lg:flex flex-col w-84 bg-zinc-900 border-r border-zinc-800 p-10 h-screen sticky top-0 shadow-2xl">
         <div className="mb-16">
           <h1 className="text-2xl font-black">EasyMenu <span className="text-yellow-400">Lite</span></h1>
@@ -214,7 +159,57 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ storeData, onUpdate, on
       <main className="flex-1 p-8 lg:p-24 pb-32 overflow-y-auto">
         <div className="max-w-6xl mx-auto">
           {activeTab === 'overview' && renderOverview()}
-          {activeTab === 'products' && renderProducts()}
+          {activeTab === 'products' && (
+            <div className="space-y-8 animate-fade-in">
+              <TabHeader title="Produtos" subtitle="Gerencie seus itens, tamanhos e sabores." />
+              <div className="flex flex-col sm:flex-row gap-4">
+                <div className="flex-1 bg-zinc-900 p-4 rounded-[2rem] border border-zinc-800 flex items-center gap-4">
+                  <Search className="text-zinc-600" size={20} />
+                  <input type="text" placeholder="Filtrar produtos..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)}
+                    className="flex-1 bg-transparent outline-none font-bold text-white placeholder-zinc-700" />
+                </div>
+                <button onClick={() => {
+                    if (storeData.categories.length === 0) { showFeedback('Crie uma categoria primeiro!', 'error'); setActiveTab('categories'); }
+                    else { setEditingProduct({ categoryId: storeData.categories[0].id, isAvailable: true, variations: [], optionGroups: [], price: 0 }); }
+                  }} className="bg-yellow-400 text-black px-8 py-4 rounded-[2rem] font-black flex items-center justify-center gap-2 shadow-xl hover:bg-yellow-300 transition-all">
+                  <Plus size={20} /> Novo Produto
+                </button>
+              </div>
+              <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+                {storeData.products.filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase())).map(product => (
+                  <div key={product.id} className={`bg-zinc-900 p-6 rounded-[2.5rem] border border-zinc-800 flex gap-6 items-center group transition-all ${!product.isAvailable ? 'opacity-40 grayscale' : 'hover:border-zinc-700'}`}>
+                    <div className="w-20 h-20 bg-zinc-800 rounded-2xl flex-shrink-0 overflow-hidden">
+                       {product.imageUrl ? <img src={product.imageUrl} className="w-full h-full object-cover" /> : <Package className="w-full h-full p-6 text-zinc-700" />}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h4 className="font-bold text-white text-lg truncate">{product.name}</h4>
+                      <div className="flex items-center gap-3 mt-1">
+                        <span className="font-black text-yellow-400">{product.variations.length > 0 ? 'Vários Preços' : formatCurrency(product.price)}</span>
+                        {product.optionGroups.length > 0 && (
+                          <span className="bg-zinc-800 text-zinc-500 text-[9px] font-black uppercase px-2 py-1 rounded">Com Sabores</span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <button onClick={() => {
+                        const newProducts = storeData.products.map(p => p.id === product.id ? { ...p, isAvailable: !p.isAvailable } : p);
+                        updateState({ ...storeData, products: newProducts });
+                      }} className={`p-3 rounded-xl transition-colors ${product.isAvailable ? 'bg-green-500/10 text-green-500' : 'bg-zinc-800 text-zinc-500'}`}>
+                        <Power size={18} />
+                      </button>
+                      <button onClick={() => setEditingProduct(product)} className="p-3 bg-zinc-800 text-white rounded-xl hover:bg-zinc-700 transition-colors"><Edit size={18} /></button>
+                      <button onClick={() => {
+                        if (confirm('Excluir este item?')) {
+                          updateState({ ...storeData, products: storeData.products.filter(p => p.id !== product.id) });
+                          showFeedback('Produto removido');
+                        }
+                      }} className="p-3 bg-red-500/10 text-red-500 rounded-xl hover:bg-red-500 hover:text-white transition-colors"><Trash2 size={18} /></button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
           {activeTab === 'categories' && (
              <div className="space-y-8 animate-fade-in">
                 <TabHeader title="Categorias" subtitle="Setores do seu cardápio." />
@@ -278,14 +273,13 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ storeData, onUpdate, on
                         <input type="number" step="0.01" value={storeData.business.settings.deliveryFee} onChange={e => updateState({...storeData, business: {...storeData.business, settings: {...storeData.business.settings, deliveryFee: parseFloat(e.target.value) || 0}}})} className="w-full bg-zinc-800 border-2 border-zinc-800 rounded-2xl px-6 py-4 outline-none text-white font-bold focus:border-yellow-400" />
                       </div>
                    </div>
-                   <div className="p-6 bg-zinc-800/50 rounded-2xl border border-zinc-800 text-zinc-500 font-medium text-sm">Todas as alterações são salvas automaticamente em seu navegador.</div>
                 </div>
              </div>
           )}
         </div>
       </main>
 
-      {/* MODAL PRODUTO COMPLEXO (SABORES/OPÇÕES) - FUNCIONALIDADE INTEGRAL MANTIDA */}
+      {/* MODAL EDITOR DE PRODUTO (RESTAURADO TAMANHOS + SABORES) */}
       {editingProduct && (
         <div className="fixed inset-0 z-[400] bg-black/95 backdrop-blur-xl flex items-center justify-center p-6 overflow-y-auto">
           <div className="bg-zinc-900 w-full max-w-4xl rounded-[3.5rem] p-10 lg:p-14 border border-zinc-800 shadow-2xl my-auto animate-in zoom-in-95 duration-300">
@@ -311,7 +305,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ storeData, onUpdate, on
               }
               updateState({ ...storeData, products: newProducts });
               setEditingProduct(null);
-              showFeedback('Produto atualizado!');
+              showFeedback('Item atualizado');
             }} className="space-y-12">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 <div className="space-y-2">
@@ -319,36 +313,59 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ storeData, onUpdate, on
                   <input required value={editingProduct.name || ''} onChange={e => setEditingProduct({...editingProduct, name: e.target.value})} className="w-full bg-zinc-800 p-5 rounded-[1.5rem] border border-zinc-700 font-bold text-white text-xl outline-none focus:border-yellow-400" />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black text-zinc-500 uppercase px-1">Categoria</label>
+                  <label className="text-[10px] font-black text-zinc-500 uppercase px-1">Setor</label>
                   <select required value={editingProduct.categoryId || ''} onChange={e => setEditingProduct({...editingProduct, categoryId: e.target.value})} className="w-full bg-zinc-800 p-5 rounded-[1.5rem] border border-zinc-700 font-bold text-white text-xl outline-none focus:border-yellow-400 appearance-none">
                     {storeData.categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                   </select>
                 </div>
               </div>
 
-              {/* GRUPOS DE SABORES (EX: O PASTEL DE 12 SABORES) */}
+              {/* SEÇÃO DE TAMANHOS / VARIAÇÕES (RESTAURADO) */}
               <div className="space-y-6">
                 <div className="flex items-center justify-between border-b border-zinc-800 pb-4">
-                  <h4 className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Sabores e Opções Extras</h4>
-                  <button type="button" onClick={() => setEditingProduct({...editingProduct, optionGroups: [...(editingProduct.optionGroups || []), { id: 'g-'+Date.now(), name: '', minChoices: 1, maxChoices: 1, options: [] }]})} className="bg-yellow-400 text-black px-4 py-2 rounded-xl text-[10px] font-black hover:bg-yellow-300 transition-all">+ CRIAR GRUPO DE SABORES</button>
+                  <h4 className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Tamanhos / Variações</h4>
+                  <button type="button" onClick={() => setEditingProduct({...editingProduct, variations: [...(editingProduct.variations || []), { id: 'v-'+Date.now(), name: '', price: 0 }]})} className="text-yellow-400 text-[10px] font-black hover:underline">+ ADICIONAR TAMANHO</button>
                 </div>
-                
-                <div className="grid gap-8">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {editingProduct.variations?.map((v, idx) => (
+                    <div key={v.id} className="flex gap-2 items-center bg-zinc-800/30 p-4 rounded-2xl border border-zinc-800">
+                      <input placeholder="Ex: Grande" required value={v.name} onChange={e => {
+                        const newVar = [...editingProduct.variations!];
+                        newVar[idx].name = e.target.value;
+                        setEditingProduct({...editingProduct, variations: newVar});
+                      }} className="bg-transparent font-bold flex-1 text-white outline-none" />
+                      <input type="number" step="0.01" placeholder="R$" value={v.price || ''} onChange={e => {
+                        const newVar = [...editingProduct.variations!];
+                        newVar[idx].price = parseFloat(e.target.value) || 0;
+                        setEditingProduct({...editingProduct, variations: newVar});
+                      }} className="w-20 bg-zinc-900 border border-zinc-700 p-2 rounded-xl font-black text-center" />
+                      <button type="button" onClick={() => setEditingProduct({...editingProduct, variations: editingProduct.variations?.filter((_, i) => i !== idx)})} className="text-zinc-600 hover:text-red-500"><X size={18} /></button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* SEÇÃO DE SABORES (GRUPOS DE OPÇÕES) */}
+              <div className="space-y-6">
+                <div className="flex items-center justify-between border-b border-zinc-800 pb-4">
+                  <h4 className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Sabores e Extras</h4>
+                  <button type="button" onClick={() => setEditingProduct({...editingProduct, optionGroups: [...(editingProduct.optionGroups || []), { id: 'g-'+Date.now(), name: '', minChoices: 1, maxChoices: 1, options: [] }]})} className="text-yellow-400 text-[10px] font-black hover:underline">+ NOVO GRUPO DE SABORES</button>
+                </div>
+                <div className="grid gap-6">
                   {editingProduct.optionGroups?.map((group, groupIdx) => (
                     <div key={group.id} className="bg-zinc-800/20 p-8 rounded-[2.5rem] border border-zinc-800 space-y-6">
-                      <div className="flex flex-col lg:flex-row gap-6 items-start lg:items-center">
-                        <input placeholder="Ex: Escolha até 12 sabores" required value={group.name} onChange={e => {
+                      <div className="flex flex-col lg:flex-row gap-6 items-center">
+                        <input placeholder="Nome do Grupo (ex: Escolha os Sabores)" required value={group.name} onChange={e => {
                           const newGroups = [...editingProduct.optionGroups!];
                           newGroups[groupIdx].name = e.target.value;
                           setEditingProduct({...editingProduct, optionGroups: newGroups});
                         }} className="bg-zinc-900 border border-zinc-700 p-4 rounded-xl font-bold flex-1 text-white outline-none focus:border-yellow-400" />
-                        
                         <div className="flex gap-4">
                           <div className="space-y-1">
                             <label className="text-[9px] font-black text-zinc-600 uppercase">Mín</label>
                             <input type="number" min="0" value={group.minChoices} onChange={e => {
                               const newGroups = [...editingProduct.optionGroups!];
-                              newGroups[groupIdx].minChoices = parseInt(e.target.value);
+                              newGroups[groupIdx].minChoices = parseInt(e.target.value) || 0;
                               setEditingProduct({...editingProduct, optionGroups: newGroups});
                             }} className="w-16 bg-zinc-900 border border-zinc-700 p-2 rounded-lg font-black text-center" />
                           </div>
@@ -356,17 +373,13 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ storeData, onUpdate, on
                             <label className="text-[9px] font-black text-zinc-600 uppercase">Máx</label>
                             <input type="number" min="1" value={group.maxChoices} onChange={e => {
                               const newGroups = [...editingProduct.optionGroups!];
-                              newGroups[groupIdx].maxChoices = parseInt(e.target.value);
+                              newGroups[groupIdx].maxChoices = parseInt(e.target.value) || 1;
                               setEditingProduct({...editingProduct, optionGroups: newGroups});
                             }} className="w-16 bg-zinc-900 border border-zinc-700 p-2 rounded-lg font-black text-center" />
                           </div>
-                          <button type="button" onClick={() => {
-                            const newGroups = editingProduct.optionGroups!.filter((_, i) => i !== groupIdx);
-                            setEditingProduct({...editingProduct, optionGroups: newGroups});
-                          }} className="text-red-500 p-3 hover:bg-red-500/10 rounded-xl transition-colors"><Trash2 size={20} /></button>
+                          <button type="button" onClick={() => setEditingProduct({...editingProduct, optionGroups: editingProduct.optionGroups?.filter((_, i) => i !== groupIdx)})} className="text-red-500 p-3"><Trash2 size={20} /></button>
                         </div>
                       </div>
-
                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                         {group.options.map((opt, optIdx) => (
                           <div key={opt.id} className="flex gap-2 items-center bg-zinc-900 p-3 rounded-xl border border-zinc-800">
@@ -391,7 +404,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ storeData, onUpdate, on
                            const newGroups = [...editingProduct.optionGroups!];
                            newGroups[groupIdx].options.push({ id: 'o-'+Date.now(), name: '', price: 0 });
                            setEditingProduct({...editingProduct, optionGroups: newGroups});
-                        }} className="p-3 border-2 border-dashed border-zinc-800 rounded-xl text-zinc-600 font-black text-[10px] hover:border-yellow-400 hover:text-yellow-400 transition-all">+ ADICIONAR SABOR</button>
+                        }} className="p-3 border-2 border-dashed border-zinc-800 rounded-xl text-zinc-600 font-black text-[10px] hover:border-yellow-400 hover:text-yellow-400 transition-all">+ ADD SABOR</button>
                       </div>
                     </div>
                   ))}
@@ -400,7 +413,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ storeData, onUpdate, on
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black text-zinc-500 uppercase px-1">Preço Base (R$)</label>
+                  <label className="text-[10px] font-black text-zinc-500 uppercase px-1">Preço Base (ou R$ 0 se usar Tamanhos)</label>
                   <div className="flex items-center gap-2 bg-zinc-800 border border-zinc-700 p-5 rounded-[1.5rem] w-full max-w-xs">
                      <span className="text-zinc-600 font-bold">R$</span>
                      <input type="number" step="0.01" value={editingProduct.price || 0} onChange={e => setEditingProduct({...editingProduct, price: parseFloat(e.target.value) || 0})} className="w-full bg-transparent font-black text-white text-2xl outline-none" />
@@ -413,7 +426,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ storeData, onUpdate, on
               </div>
 
               <div className="flex gap-4 pt-6">
-                <button type="submit" className="flex-1 bg-yellow-400 text-black py-6 rounded-[2.5rem] font-black text-xl hover:bg-yellow-300 transition-all shadow-xl active:scale-95">Salvar Alterações</button>
+                <button type="submit" className="flex-1 bg-yellow-400 text-black py-6 rounded-[2.5rem] font-black text-xl hover:bg-yellow-300 transition-all shadow-xl active:scale-95">Salvar Produto</button>
                 <button type="button" onClick={() => setEditingProduct(null)} className="px-10 py-6 bg-zinc-800 text-zinc-400 font-bold rounded-[2.5rem]">Cancelar</button>
               </div>
             </form>
@@ -425,7 +438,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ storeData, onUpdate, on
       {editingCategory && (
         <div className="fixed inset-0 z-[400] bg-black/80 backdrop-blur-md flex items-center justify-center p-6">
           <div className="bg-zinc-900 w-full max-w-md rounded-[3rem] p-12 border border-zinc-800 shadow-2xl">
-            <h3 className="text-2xl font-black mb-10 text-white">Novo Setor</h3>
+            <h3 className="text-2xl font-black mb-10 text-white">Editar Categoria</h3>
             <form onSubmit={e => {
               e.preventDefault();
               const newCats = [...storeData.categories];
@@ -438,7 +451,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ storeData, onUpdate, on
               }
               updateState({ ...storeData, categories: newCats });
               setEditingCategory(null);
-              showFeedback('Categoria salva');
             }} className="space-y-6">
               <input required autoFocus value={editingCategory.name} onChange={e => setEditingCategory({...editingCategory, name: e.target.value})} className="w-full bg-zinc-800 p-6 rounded-[2rem] border-2 border-zinc-800 focus:border-yellow-400 outline-none text-center font-black text-3xl text-white" placeholder="Ex: Bebidas" />
               <button type="submit" className="w-full bg-yellow-400 text-black py-6 rounded-[2rem] font-black text-lg active:scale-95 transition-transform">Confirmar</button>
@@ -453,7 +465,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ storeData, onUpdate, on
           <div className="bg-white p-12 rounded-[4rem] text-center shadow-2xl" onClick={e => e.stopPropagation()}>
              <img src={generateQRCodeUrl(storeData.business.slug)} alt="QR Code" className="w-64 h-64 mx-auto mb-6" />
              <p className="text-zinc-400 font-black uppercase text-[10px] tracking-widest">Escaneie para acessar o cardápio</p>
-             <button onClick={() => setShowQR(false)} className="mt-8 text-black font-black hover:underline">Fechar</button>
           </div>
         </div>
       )}
